@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gusto Detractor RCA Classifier</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --teal:        #1a7a6e;
+      --teal-mid:    #2a9d8e;
+      --teal-light:  #e8f5f3;
+      --teal-dark:   #145f56;
+      --red:         #c0392b;
+      --red-light:   #fdf2f1;
+      --orange:      #e07b3a;
+      --orange-light:#fef6ef;
+      --purple:      #7c4daf;
+      --purple-light:#f5f0fa;
+      --gray-text:   #4a5568;
+      --gray-bg:     #f7f8fa;
+      --gray-border: #e2e8f0;
+      --text:        #1a202c;
+      --muted:       #718096;
+      --shadow-sm:   0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md:   0 4px 12px rgba(0,0,0,0.10);
+      --radius:      10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f4f8; color: var(--text); min-height: 100vh; }
+
+    header {
+      background: var(--teal); color: white; padding: 16px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: var(--shadow-md); position: sticky; top: 0; z-index: 100;
+    }
+    .header-left .logo { font-size: 20px; font-weight: 700; }
+    .header-left .logo span { color: #7fe5d8; }
+    .header-left .sub { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+
+    nav {
+      background: white; border-bottom: 1px solid var(--gray-border);
+      display: flex; padding: 0 32px; box-shadow: var(--shadow-sm);
+    }
+    .nav-tab {
+      padding: 14px 22px; font-size: 14px; font-weight: 500; color: var(--muted);
+      cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .nav-tab:hover { color: var(--teal); }
+    .nav-tab.active { color: var(--teal); border-bottom-color: var(--teal); font-weight: 600; }
+    .nav-badge { background: var(--teal); color: white; border-radius: 20px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+
+    .page { display: none; max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
+    .page.active { display: block; }
+
+    .card { background: white; border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--gray-border); padding: 24px; margin-bottom: 20px; }
+    .card-title { font-size: 13px; font-weight: 700; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    @media(max-width:700px){ .form-grid { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group label { font-size: 12px; font-weight: 600; color: var(--gray-text); }
+    .form-group input, .form-group select {
+      border: 1px solid var(--gray-border); border-radius: 7px; padding: 9px 12px;
+      font-size: 14px; color: var(--text); background: var(--gray-bg);
+      transition: border-color 0.15s, background 0.15s; font-family: inherit;
+    }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--teal-mid); background: white; }
+    .form-group select { cursor: pointer; }
+    .required-star { color: var(--red); margin-left: 2px; }
+
+    textarea {
+      width: 100%; min-height: 200px; border: 1px solid var(--gray-border); border-radius: 8px;
+      padding: 13px; font-size: 14px; font-family: inherit; color: var(--text);
+      resize: vertical; line-height: 1.6; background: var(--gray-bg); transition: border-color 0.15s, background 0.15s;
+    }
+    textarea:focus { outline: none; border-color: var(--teal-mid); background: white; }
+    textarea::placeholder { color: #aab; }
+    .textarea-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+    .char-count { font-size: 12px; color: var(--muted); }
+
+    .analyze-btn {
+      display: flex; align-items: center; gap: 8px; padding: 12px 26px;
+      background: var(--teal); color: white; border: none; border-radius: 8px;
+      font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s;
+      box-shadow: 0 2px 6px rgba(26,122,110,0.3);
+    }
+    .analyze-btn:hover { background: var(--teal-mid); }
+    .analyze-btn:active { transform: scale(0.98); }
+    .analyze-btn:disabled { background: #b2c9c6; cursor: not-allowed; box-shadow: none; transform: none; }
+    .spinner { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+    .analyze-btn.loading .spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-box { background: var(--red-light); border: 1px solid #f5c6c3; border-radius: 8px; padding: 13px 17px; color: var(--red); font-size: 14px; display: none; margin-bottom: 16px; }
+
+    .result-section { display: none; }
+    .result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .result-header h2 { font-size: 17px; font-weight: 700; color: var(--teal); }
+    .agent-badge { background: var(--teal-light); color: var(--teal); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; }
+    .drivers-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 18px; }
+    @media(max-width:600px){ .drivers-grid { grid-template-columns: 1fr; } }
+    .driver-card { border-radius: 9px; padding: 16px 18px; border: 1.5px solid transparent; }
+    .driver-card.primary { background: linear-gradient(135deg,#e8f5f3,#d1ede9); border-color: #a8d8d2; }
+    .driver-card.secondary { background: linear-gradient(135deg,#fef6ef,#fdeede); border-color: #f5cba7; }
+    .driver-card.tertiary { background: linear-gradient(135deg,#f5f0fa,#ede6f7); border-color: #c8b3e8; }
+    .driver-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+    .driver-card.primary .driver-label { color: var(--teal); }
+    .driver-card.secondary .driver-label { color: var(--orange); }
+    .driver-card.tertiary .driver-label { color: var(--purple); }
+    .driver-value { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.3; }
+    .conf-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .conf-row label { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+    .conf-bar-wrap { flex: 1; background: var(--gray-border); border-radius: 20px; height: 7px; overflow: hidden; }
+    .conf-bar { height: 100%; border-radius: 20px; background: var(--teal); transition: width 0.8s ease; }
+    .conf-pct { font-size: 12px; font-weight: 700; color: var(--teal); min-width: 34px; text-align: right; }
+    .def-block { background: white; border-left: 4px solid var(--teal); border-radius: 0 8px 8px 0; border-top: 1px solid var(--gray-border); border-right: 1px solid var(--gray-border); border-bottom: 1px solid var(--gray-border); padding: 13px 16px; margin-bottom: 14px; }
+    .def-block h3 { font-size: 11px; font-weight: 700; color: var(--teal); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+    .def-block p { font-size: 13px; color: var(--gray-text); line-height: 1.65; font-style: italic; }
+    .reasoning-block { background: var(--gray-bg); border-radius: 8px; padding: 16px; border: 1px solid var(--gray-border); margin-bottom: 14px; }
+    .reasoning-block h3 { font-size: 11px; font-weight: 700; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .reasoning-block p { font-size: 14px; color: var(--text); line-height: 1.7; }
+    .evidence-block { background: white; border: 1px solid var(--gray-border); border-radius: 8px; padding: 16px; }
+    .evidence-block h3 { font-size: 11px; font-weight: 700; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+    .evidence-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+    .evidence-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.5; }
+    .evidence-list li::before { content: "→"; color: var(--teal); font-weight: 700; flex-shrink: 0; }
+    .saved-banner { background: var(--teal-light); border: 1px solid #a8d8d2; border-radius: 7px; padding: 10px 16px; color: var(--teal); font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+
+    .log-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .log-toolbar h2 { font-size: 17px; font-weight: 700; color: var(--text); }
+    .export-btn { display: flex; align-items: center; gap: 7px; padding: 9px 18px; background: var(--teal); color: white; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .export-btn:hover { background: var(--teal-mid); }
+    .export-btn:disabled { background: #b2c9c6; cursor: not-allowed; }
+    .log-table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--gray-border); }
+    table { width: 100%; border-collapse: collapse; background: white; font-size: 13px; }
+    thead { background: var(--teal); color: white; }
+    th { padding: 11px 14px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+    td { padding: 11px 14px; border-bottom: 1px solid var(--gray-border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--teal-light); }
+    .pill { display: inline-block; border-radius: 20px; padding: 2px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .pill-people { background: #e8f5f3; color: var(--teal); }
+    .pill-process { background: var(--orange-light); color: var(--orange); }
+    .pill-product { background: var(--purple-light); color: var(--purple); }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; margin-bottom: 20px; }
+    @media(max-width:900px){ .stats-grid { grid-template-columns: repeat(3,1fr); } }
+    @media(max-width:600px){ .stats-grid { grid-template-columns: 1fr 1fr; } }
+    .stat-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-border); padding: 18px 20px; }
+    .stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; }
+    .stat-value { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
+    .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media(max-width:700px){ .charts-grid { grid-template-columns: 1fr; } }
+    .chart-card { background: white; border-radius: var(--radius); border: 1px solid var(--gray-border); padding: 20px; }
+    .chart-card h3 { font-size: 13px; font-weight: 700; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 16px; }
+    .chart-wrap { position: relative; height: 220px; }
+    .dash-empty { text-align: center; padding: 80px 20px; color: var(--muted); }
+    .dash-empty .icon { font-size: 40px; margin-bottom: 12px; }
+
+    footer { text-align: center; font-size: 11px; color: var(--muted); padding: 12px 0 28px; }
+
+    /* ── Password gate ── */
+    #passwordGate {
+      position: fixed; inset: 0; background: #f0f4f8;
+      display: flex; align-items: center; justify-content: center; z-index: 9999;
+    }
+    #passwordGate.hidden { display: none; }
+    .gate-card {
+      background: white; border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      border: 1px solid var(--gray-border); padding: 40px 44px; width: 100%; max-width: 380px;
+      text-align: center;
+    }
+    .gate-logo { font-size: 22px; font-weight: 700; color: var(--teal); margin-bottom: 4px; }
+    .gate-logo span { color: #2a9d8e; }
+    .gate-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+    .gate-label { font-size: 12px; font-weight: 600; color: var(--gray-text); text-align: left; display: block; margin-bottom: 6px; }
+    .gate-input {
+      width: 100%; border: 1px solid var(--gray-border); border-radius: 8px;
+      padding: 11px 14px; font-size: 15px; font-family: inherit; color: var(--text);
+      background: var(--gray-bg); transition: border-color 0.15s, background 0.15s;
+      margin-bottom: 14px;
+    }
+    .gate-input:focus { outline: none; border-color: var(--teal-mid); background: white; }
+    .gate-btn {
+      width: 100%; padding: 12px; background: var(--teal); color: white; border: none;
+      border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;
+      transition: background 0.15s; box-shadow: 0 2px 6px rgba(26,122,110,0.3);
+    }
+    .gate-btn:hover { background: var(--teal-mid); }
+    .gate-error { font-size: 13px; color: var(--red); margin-top: 10px; min-height: 18px; }
+  </style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="passwordGate">
+  <div class="gate-card">
+    <div class="gate-logo">Gusto <span>Detractor</span> RCA</div>
+    <div class="gate-sub">Vendor Root Cause Analysis · Internal Tool</div>
+    <label class="gate-label" for="gateInput">Password</label>
+    <input class="gate-input" type="password" id="gateInput" placeholder="Enter password…" autocomplete="current-password"/>
+    <button class="gate-btn" onclick="checkPassword()">Unlock</button>
+    <div class="gate-error" id="gateError"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const HASH = 'dcbe8668f9ee0f84a0d30d4cc9fad63987db947086d1674e6c0bb40cc6c2d0cb';
+  async function sha256(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+  window.checkPassword = async function() {
+    const val = document.getElementById('gateInput').value;
+    const hash = await sha256(val);
+    if (hash === HASH) {
+      document.getElementById('passwordGate').classList.add('hidden');
+    } else {
+      document.getElementById('gateError').textContent = 'Incorrect password. Please try again.';
+      document.getElementById('gateInput').value = '';
+      document.getElementById('gateInput').focus();
+    }
+  };
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !document.getElementById('passwordGate').classList.contains('hidden')) {
+      checkPassword();
+    }
+  });
+})();
+</script>
+
+<header>
+  <div class="header-left">
+    <div class="logo">Gusto <span>Detractor</span> RCA Classifier</div>
+    <div class="sub">Vendor Root Cause Analysis · Powered by Claude AI</div>
+  </div>
+</header>
+
+<nav>
+  <div class="nav-tab active" onclick="switchTab('classify')" id="tab-classify">
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 10h6M7 7h6M7 13h4"/></svg>
+    Classify
+  </div>
+  <div class="nav-tab" onclick="switchTab('log')" id="tab-log">
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h12M4 10h12M4 14h8"/></svg>
+    Log
+    <span class="nav-badge" id="logBadge">0</span>
+  </div>
+  <div class="nav-tab" onclick="switchTab('dashboard')" id="tab-dashboard">
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="4" height="7" rx="1"/><rect x="8" y="6" width="4" height="11" rx="1"/><rect x="13" y="3" width="4" height="14" rx="1"/></svg>
+    Dashboard
+  </div>
+  <div class="nav-tab" onclick="switchTab('instructions')" id="tab-instructions">
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 7h.01"/></svg>
+    Instructions
+  </div>
+</nav>
+
+<!-- CLASSIFY -->
+<div class="page active" id="page-classify">
+  <div class="card">
+    <div class="card-title">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="7" r="4"/><path d="M3 17c0-3.3 3.1-6 7-6s7 2.7 7 6"/></svg>
+      Case Details
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Agent Name <span class="required-star">*</span></label>
+        <input type="text" id="agentName" placeholder="e.g. Rex E."/>
+      </div>
+      <div class="form-group">
+        <label>Team Lead <span class="required-star">*</span></label>
+        <input type="text" id="teamLead" placeholder="e.g. Sarah M."/>
+      </div>
+      <div class="form-group">
+        <label>LOB <span class="required-star">*</span></label>
+        <select id="lob">
+          <option value="">Select LOB…</option>
+          <option>Payroll and Taxes</option>
+          <option>Payroll Advanced Care</option>
+          <option>Partner Care</option>
+          <option>Benefits</option>
+          <option>Financial Services</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Channel <span class="required-star">*</span></label>
+        <select id="channel">
+          <option value="">Select channel…</option>
+          <option>Phone</option>
+          <option>Chat</option>
+          <option>Email</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Case Number <span class="required-star">*</span></label>
+        <input type="text" id="caseNumber" placeholder="e.g. 42295116"/>
+      </div>
+      <div class="form-group">
+        <label>Date of Interaction <span class="required-star">*</span></label>
+        <input type="date" id="interactionDate"/>
+      </div>
+      <div class="form-group">
+        <label>Date of Survey Return <span class="required-star">*</span></label>
+        <input type="date" id="surveyReturnDate"/>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h12v12H4z"/><path d="M7 8h6M7 11h4"/></svg>
+      Transcript
+    </div>
+    <textarea id="transcript" placeholder="Paste the full email, chat, or phone transcript here…" oninput="updateCount()"></textarea>
+    <div class="textarea-footer">
+      <span class="char-count" id="charCount">0 characters</span>
+      <button class="analyze-btn" id="analyzeBtn" onclick="analyze()">
+        <div class="spinner"></div>
+        <span class="btn-text">Analyze &amp; Classify</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="card result-section" id="resultSection">
+    <div class="result-header">
+      <h2>RCA Classification</h2>
+      <span class="agent-badge" id="resultAgent"></span>
+    </div>
+    <div class="drivers-grid">
+      <div class="driver-card primary">
+        <div class="driver-label">Primary Driver</div>
+        <div class="driver-value" id="rPrimary">—</div>
+      </div>
+      <div class="driver-card secondary">
+        <div class="driver-label">Secondary Driver</div>
+        <div class="driver-value" id="rSecondary">—</div>
+      </div>
+      <div class="driver-card tertiary">
+        <div class="driver-label">Tertiary Driver</div>
+        <div class="driver-value" id="rTertiary">—</div>
+      </div>
+    </div>
+    <div class="conf-row">
+      <label>Confidence</label>
+      <div class="conf-bar-wrap"><div class="conf-bar" id="confBar" style="width:0%"></div></div>
+      <div class="conf-pct" id="confPct">0%</div>
+    </div>
+    <div class="def-block">
+      <h3>Rubric Definition</h3>
+      <p id="rDefinition">—</p>
+    </div>
+    <div class="reasoning-block">
+      <h3>Reasoning</h3>
+      <p id="rReasoning">—</p>
+    </div>
+    <div class="evidence-block">
+      <h3>Key Evidence</h3>
+      <ul class="evidence-list" id="rEvidence"></ul>
+    </div>
+    <div class="saved-banner" id="savedBanner">
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10l4 4 8-8"/></svg>
+      Saved to log
+    </div>
+  </div>
+</div>
+
+<!-- LOG -->
+<div class="page" id="page-log">
+  <div class="log-toolbar">
+    <h2>Classification Log <span style="color:var(--muted);font-weight:400;font-size:14px" id="logCount"></span></h2>
+    <button class="export-btn" onclick="exportCSV()" id="exportBtn" disabled>
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 3v10M6 9l4 4 4-4"/><path d="M4 17h12"/></svg>
+      Export CSV
+    </button>
+  </div>
+  <div class="log-table-wrap">
+    <table id="logTable">
+      <thead>
+        <tr>
+          <th>Interaction Date</th>
+          <th>Survey Return</th>
+          <th>Agent</th>
+          <th>Team Lead</th>
+          <th>LOB</th>
+          <th>Channel</th>
+          <th>Case #</th>
+          <th>Primary</th>
+          <th>Secondary</th>
+          <th>Tertiary</th>
+          <th>Confidence</th>
+        </tr>
+      </thead>
+      <tbody id="logBody">
+        <tr><td colspan="11"><div class="empty-state"><div class="icon">📋</div><p>No classifications yet. Head to the Classify tab to get started.</p></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page" id="page-dashboard">
+  <div id="dashEmpty" class="dash-empty">
+    <div class="icon">📊</div>
+    <p>No data yet — classify some transcripts to see trends here.</p>
+  </div>
+  <div id="dashContent" style="display:none">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Classified</div>
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-sub">this session</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">People</div>
+        <div class="stat-value" id="statPeople" style="color:var(--teal)">0</div>
+        <div class="stat-sub" id="statPeoplePct"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Process</div>
+        <div class="stat-value" id="statProcess" style="color:var(--orange)">0</div>
+        <div class="stat-sub" id="statProcessPct"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Product</div>
+        <div class="stat-value" id="statProduct" style="color:var(--purple)">0</div>
+        <div class="stat-sub" id="statProductPct"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Confidence</div>
+        <div class="stat-value" id="statConf">—</div>
+        <div class="stat-sub">across all cases</div>
+      </div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card"><h3>Primary Driver</h3><div class="chart-wrap"><canvas id="chartPrimary"></canvas></div></div>
+      <div class="chart-card"><h3>Secondary Driver</h3><div class="chart-wrap"><canvas id="chartSecondary"></canvas></div></div>
+      <div class="chart-card"><h3>Tertiary Driver</h3><div class="chart-wrap"><canvas id="chartTertiary"></canvas></div></div>
+      <div class="chart-card"><h3>By LOB</h3><div class="chart-wrap"><canvas id="chartLOB"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- INSTRUCTIONS -->
+<div class="page" id="page-instructions">
+  <div style="max-width:740px">
+    <div class="card">
+      <div class="card-title">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 7h.01"/></svg>
+        How to Use This Tool
+      </div>
+      <p style="font-size:14px;line-height:1.8;color:var(--gray-text)">
+        This tool uses AI to classify Detractor interactions against the Vendor RCA Rubric, assigning a Primary, Secondary, and Tertiary driver to each case. Before running a classification, fill in all required case details and paste the full transcript for the interaction being reviewed. Follow the channel-specific guidance below to ensure the right content is submitted.
+      </p>
+    </div>
+
+    <div class="card" style="background:#f0faf8;border-color:#a8d8d2;">
+      <div class="card-title" style="color:var(--teal)">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Privacy &amp; Data Notice
+      </div>
+      <p style="font-size:14px;line-height:1.8;color:var(--gray-text)">
+        <strong>PII and PHI are not stored anywhere when this tool is used.</strong> Transcripts are sent to Anthropic's API for real-time analysis only and are not retained, logged, or used for training after the API call completes. No transcript data is saved to any server or database. Session data (the classification log) exists only in your browser tab and is permanently deleted when the tab is closed.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="color:var(--teal)">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5a2 2 0 012-2h1.5a1 1 0 01.95.68l1 3a1 1 0 01-.23 1.02L7 8.9a11 11 0 004.1 4.1l1.2-1.22a1 1 0 011.02-.23l3 1a1 1 0 01.68.95V15a2 2 0 01-2 2C7.16 17 3 12.84 3 8V5z"/></svg>
+        Phone
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="background:var(--teal-light);border-radius:8px;padding:10px 14px;flex-shrink:0;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:0.05em">Source</div>
+          <div style="font-size:15px;font-weight:700;color:var(--teal);margin-top:2px">CXOne</div>
+        </div>
+        <p style="font-size:14px;line-height:1.8;color:var(--gray-text)">Copy and paste the call transcript directly from <strong>CXOne</strong> into the transcript field. Ensure the full transcript is included from the start of the interaction through to the end of the call.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="color:var(--teal)">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H6l-4 4V5z"/></svg>
+        Chat
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="background:var(--teal-light);border-radius:8px;padding:10px 14px;flex-shrink:0;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:0.05em">Source</div>
+          <div style="font-size:15px;font-weight:700;color:var(--teal);margin-top:2px">SFDC</div>
+        </div>
+        <p style="font-size:14px;line-height:1.8;color:var(--gray-text)">Copy and paste the chat transcript from <strong>Salesforce (SFDC)</strong> into the transcript field. Include the full conversation from the customer's opening message through the agent's closing.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="color:var(--teal)">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l7 5 7-5M3 8V6a1 1 0 011-1h12a1 1 0 011 1v2M3 8v8a1 1 0 001 1h12a1 1 0 001-1V8"/></svg>
+        Email
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:16px">
+        <div style="background:var(--teal-light);border-radius:8px;padding:10px 14px;flex-shrink:0;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:0.05em">Source</div>
+          <div style="font-size:15px;font-weight:700;color:var(--teal);margin-top:2px">SFDC</div>
+        </div>
+        <p style="font-size:14px;line-height:1.8;color:var(--gray-text)">Start from the <strong>most recent email</strong> in the thread and expand the conversation all the way back to the beginning of the interaction. Copy and paste the full expanded thread into the transcript field.</p>
+      </div>
+      <div style="background:#fffbea;border:1px solid #f6d860;border-left:4px solid #f6b800;border-radius:0 8px 8px 0;padding:14px 18px">
+        <div style="font-size:11px;font-weight:700;color:#92740a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">⚠ Important — Multi-Agent Cases</div>
+        <p style="font-size:14px;line-height:1.8;color:#5c4a0a">If the case was previously handled by another agent, <strong>only paste in the interactions from the agent who received the Detractor</strong> and their exchanges with the customer. Do not include prior agents' messages, as each interaction should be evaluated and tagged independently.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Required Fields
+      </div>
+      <p style="font-size:14px;color:var(--gray-text);line-height:1.7;margin-bottom:12px">All fields must be completed before a classification can be run:</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)"><span style="color:var(--teal);font-weight:700">✓</span> Agent Name</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)"><span style="color:var(--teal);font-weight:700">✓</span> Team Lead</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)"><span style="color:var(--teal);font-weight:700">✓</span> LOB</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)"><span style="color:var(--teal);font-weight:700">✓</span> Channel</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)"><span style="color:var(--teal);font-weight:700">✓</span> Case Number</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)"><span style="color:var(--teal);font-weight:700">✓</span> Date of Interaction</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)"><span style="color:var(--teal);font-weight:700">✓</span> Date of Survey Return</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Gusto Internal Tool · Detractor RCA Rubric v1.0 · For QA use only</footer>
+
+<script>
+// ── API Key ───────────────────────────────────────────────────────────────────
+const API_KEY = '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';
+
+// ── Rubric ────────────────────────────────────────────────────────────────────
+const RUBRIC = [
+  // People > Incorrect / Incomplete Resolution
+  { primary:"People", secondary:"Incorrect / Incomplete Resolution", tertiary:"Probing Questions", description:"A lack of probing questions or asking the correct questions lead to the TM providing the wrong or incomplete resolution." },
+  { primary:"People", secondary:"Incorrect / Incomplete Resolution", tertiary:"Tool Utilization/Navigation", description:"TM was unable to properly use tools and resources to gather the information for a correct resolution." },
+  { primary:"People", secondary:"Incorrect / Incomplete Resolution", tertiary:"Incomplete Investigation", description:"TM didn't fully research the Customer's issue, leading to a partial or wrong resolution." },
+  { primary:"People", secondary:"Incorrect / Incomplete Resolution", tertiary:"Next Issue Avoidance", description:"TM missed key information that Customer should be aware of for future issues, likely leading to the Customer needing to reach out again to fix something that could have been proactively avoided." },
+  // People > Communication Skills
+  { primary:"People", secondary:"Communication Skills", tertiary:"Lack of Empathy or Positive Framing", description:"TM failed to acknowledge the customer's emotions or did not frame their response in a constructive, positive way." },
+  { primary:"People", secondary:"Communication Skills", tertiary:"Lack of Clarity / FCR", description:"TM failed to clearly explain their resolution, causing confusion and frustration on both ends. TM did not demonstrate next issue avoidance." },
+  { primary:"People", secondary:"Communication Skills", tertiary:"Lack of Confidence", description:"TM gave correct information but undermined customer trust through nervous verbal mannerisms (\"um,\" \"might,\" \"maybe,\" \"I think,\" etc.) or excessive holds while communicating the answer." },
+  { primary:"People", secondary:"Communication Skills", tertiary:"Robotic Response", description:"TM lacked a human-quality to their responses, sounding impersonal to the specific needs of the Customer." },
+  // People > Teammate Unprofessional
+  { primary:"People", secondary:"Teammate Unprofessional", tertiary:"Advocate Behavior", description:"TM exhibited unprofessional behavior: rudeness, irate or condescending tone. Tone and behavior did not reflect Gustie standards." },
+  { primary:"People", secondary:"Teammate Unprofessional", tertiary:"Active Listening/Reading", description:"TM responded to the wrong customer (multiple interactions) or didn't actively listen/read the Customer's issue, leading to a confusing interaction." },
+  // People > Process Ownership
+  { primary:"People", secondary:"Process Ownership", tertiary:"Failed to Escalate or Transfer Properly", description:"TM failed to escalate a supervisor request in a timely manner or pushed back on escalation; OR failed to transfer an out-of-scope case to the correct department." },
+  { primary:"People", secondary:"Process Ownership", tertiary:"Failed to Follow Up", description:"TM failed to follow up after a disconnected call/chat, did not send a promised follow-up email, or failed to honor a commitment to the customer. Email: did not follow Queue Management doc timeline. Phone/chat: did not create a follow-up case in a timely manner." },
+  { primary:"People", secondary:"Process Ownership", tertiary:"Delay in Response", description:"TM did not respond in a timely manner. Email: failed to check in/reply per the Queue Management doc. Phone/chat: exceeded hold threshold or did not check in with the customer during holds." },
+  // Process > Process / Product Limitation or Constraint
+  { primary:"Process", secondary:"Process / Product Limitation or Constraint", tertiary:"Lack of Customer Follow Through", description:"Customer refused to follow required steps (e.g., sending documents, contacting admins, calling in) or became unresponsive, preventing a complete resolution. Also applies when the customer was unsatisfied despite accurate, timely support, or refused help due to TM's protected characteristics or geo (offshore vs. onshore)." },
+  { primary:"Process", secondary:"Process / Product Limitation or Constraint", tertiary:"Lack of Adequate Resources / Training", description:"TM lacked adequate resources, training materials, or internal support (CWAC) to properly assist the customer for in-scope case reasons. TM exhausted all available avenues but could not provide sufficient support." },
+  { primary:"Process", secondary:"Process / Product Limitation or Constraint", tertiary:"Outside Scope of Support", description:"TM provided incorrect guidance on an out-of-scope case reason, resulting in a DSAT. Typically used for live channels where rerouting is unavailable. Verify against the \"out-of-scope\" tabs in the Case Reason Classification doc." },
+  { primary:"Process", secondary:"Process / Product Limitation or Constraint", tertiary:"TFIR Caused", description:"Response was delayed due to high case volume/backlog or cross-functional ticket delays in SFDC (Risk, MOps, COBRA, etc.). Customer's verbatim should confirm this as the primary driver." },
+  { primary:"Process", secondary:"Process / Product Limitation or Constraint", tertiary:"Previous Touch Point Issue", description:"DSAT resulted from a previous TM's incorrect information or poor behavior. Current TM must still show empathy and provide correct resolution. Verbatim should reference a prior interaction — treat similarly to a DSAT Dispute case." },
+  { primary:"Process", secondary:"Process / Product Limitation or Constraint", tertiary:"Product Limitation / Bug", description:"Requested feature is unavailable, a product bug exists (pending TPO Jira), or customer is dissatisfied with Gusto Product/Pricing. TM should offer workarounds and resolution timelines, remain empathetic, and submit a TPO feature request Jira if the customer has viable suggestions." },
+  // Product > Tech / Product Bugs & Outages
+  { primary:"Product", secondary:"Tech / Product Bugs & Outages", tertiary:"Technical Issues / System Outage", description:"TM-side technical failure (VDI, CXOne, zScaler, choppy/static lines) OR a confirmed company-wide system outage (Panda, Hippo, SFDC). System outages must be confirmed via escalated JIRA or a captains/escalations announcement." },
+  // Product > DSAT Unrelated to the Case
+  { primary:"Product", secondary:"DSAT Unrelated to the Case", tertiary:"N/A", description:"DSAT is unrelated to the TM's case (e.g., comment for a different TM, wrong channel, unrelated issue, or survey submitted before reading TM's email response). If a specific root cause is identifiable from the verbatim, select the appropriate tertiary driver instead." },
+  // Product > Third-Party Issue
+  { primary:"Product", secondary:"Third-Party Issue", tertiary:"Partnership Issue", description:"Issue is rooted in a partner, integration, carrier, or tax agency and cannot be actioned or resolved within Gusto." }
+];
+const RUBRIC_JSON = JSON.stringify(RUBRIC, null, 2);
+
+// ── Session log ───────────────────────────────────────────────────────────────
+let sessionLog = [];
+let charts = {};
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('page-' + tab).classList.add('active');
+  if (tab === 'dashboard') renderDashboard();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function updateCount() {
+  const l = document.getElementById('transcript').value.length;
+  document.getElementById('charCount').textContent = l.toLocaleString() + ' character' + (l!==1?'s':'');
+}
+function showError(msg) { const b = document.getElementById('errorBox'); b.textContent = msg; b.style.display = 'block'; }
+function hideError() { document.getElementById('errorBox').style.display = 'none'; }
+
+function validate() {
+  if (!document.getElementById('agentName').value.trim()) return 'Agent Name is required.';
+  if (!document.getElementById('teamLead').value.trim()) return 'Team Lead is required.';
+  if (!document.getElementById('lob').value) return 'LOB is required.';
+  if (!document.getElementById('channel').value) return 'Channel is required.';
+  if (!document.getElementById('caseNumber').value.trim()) return 'Case Number is required.';
+  if (!document.getElementById('interactionDate').value) return 'Date of Interaction is required.';
+  if (!document.getElementById('surveyReturnDate').value) return 'Date of Survey Return is required.';
+  const t = document.getElementById('transcript').value.trim();
+  if (!t) return 'Please paste a transcript.';
+  if (t.length < 40) return 'The transcript looks too short. Please paste the full interaction.';
+  return null;
+}
+
+// ── Analyze ───────────────────────────────────────────────────────────────────
+async function analyze() {
+  hideError();
+  const err = validate();
+  if (err) { showError(err); return; }
+
+  const transcript = document.getElementById('transcript').value.trim();
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true; btn.classList.add('loading');
+  btn.querySelector('.btn-text').textContent = 'Analyzing…';
+  document.getElementById('resultSection').style.display = 'none';
+
+  const systemPrompt = `You are a QA analyst at Gusto who classifies customer support interactions using the DSAT RCA (Root Cause Analysis) Rubric. Your job is to read an email, chat, or phone transcript and identify the single best-fitting Primary, Secondary, and Tertiary driver from the rubric.
+
+Here is the complete rubric in JSON format:
+${RUBRIC_JSON}
+
+Instructions:
+- Pick exactly ONE tertiary driver that best explains the DSAT.
+- The primary and secondary are determined by whichever tertiary you select.
+- Assign a confidence score from 0–100 based on how clearly the evidence supports your choice.
+- Provide 2–4 specific pieces of evidence quoted or paraphrased directly from the transcript.
+- Write a concise reasoning paragraph (2–4 sentences) explaining your choice.
+
+Secondary Driver Priority Rule (People only):
+When the primary driver is "People" and multiple secondary drivers could plausibly apply, use this priority order:
+1. Incorrect / Incomplete Resolution — did the TM fail to probe correctly, fully investigate, use tools properly, or flag next issue avoidance? This is the highest priority because it reflects a fundamental failure to resolve the customer's issue.
+2. Communication Skills — did the TM fail to clearly explain next steps or the resolution, lack empathy, sound robotic, or undermine customer trust? Includes cases where the answer was technically correct but poorly communicated.
+3. Teammate Unprofessional — did the TM exhibit rude or condescending behavior, or fail to actively listen/read the customer's issue?
+4. Process Ownership — did the TM fail to escalate, follow up, or respond in a timely manner?
+
+Only move down the priority list if the higher driver clearly does not apply. Do not default to Process Ownership when the root issue is how poorly the resolution or next steps were handled or communicated.
+
+Previous Touch Point Issue Rule:
+References to a prior advocate handling the case are a signal to consider Process > Process/Product Limitation or Constraint > Previous Touch Point Issue. However, only classify as Previous Touch Point Issue if the current TM's handling was clean — meaning they communicated empathetically, provided accurate information, and followed proper process. If the current TM also had gaps, classify using the appropriate People driver instead.
+
+Product Primary Driver Rule:
+Use "Product" (not "Process") as the primary driver when: the issue is a confirmed TM-side or system-wide technical outage, the DSAT is unrelated to the TM's case, or the issue is rooted in a third-party partner or integration.
+
+Respond ONLY with valid JSON matching this exact schema (no markdown, no extra text):
+{
+  "primary": "<primary driver name>",
+  "secondary": "<secondary driver name>",
+  "tertiary": "<tertiary driver name>",
+  "confidence": <integer 0-100>,
+  "reasoning": "<2-4 sentence explanation>",
+  "evidence": ["<quote or paraphrase 1>", "<quote or paraphrase 2>", "..."]
+}`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `Please classify this transcript:\n\n${transcript}` }]
+      })
+    });
+
+    if (!resp.ok) {
+      const e = await resp.json().catch(()=>({}));
+      throw new Error(e?.error?.message || `API error ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const raw = (data?.content?.[0]?.text || '').replace(/^```[a-z]*\n?/i,'').replace(/\n?```$/,'').trim();
+    const result = JSON.parse(raw);
+    renderResult(result);
+    saveToLog(result);
+
+  } catch(e) {
+    showError('Error: ' + (e.message || 'Unknown error. Please try again.'));
+  } finally {
+    btn.disabled = false; btn.classList.remove('loading');
+    btn.querySelector('.btn-text').textContent = 'Analyze & Classify';
+  }
+}
+
+function renderResult(r) {
+  document.getElementById('rPrimary').textContent   = r.primary   || '—';
+  document.getElementById('rSecondary').textContent = r.secondary || '—';
+  document.getElementById('rTertiary').textContent  = r.tertiary  || '—';
+  document.getElementById('resultAgent').textContent = document.getElementById('agentName').value.trim();
+  document.getElementById('rReasoning').textContent = r.reasoning || '—';
+  const pct = Math.min(100, Math.max(0, r.confidence || 0));
+  document.getElementById('confBar').style.width = pct + '%';
+  document.getElementById('confPct').textContent  = pct + '%';
+  const match = RUBRIC.find(row => row.tertiary.toLowerCase() === (r.tertiary||'').toLowerCase())
+             || RUBRIC.find(row => row.secondary.toLowerCase() === (r.secondary||'').toLowerCase());
+  document.getElementById('rDefinition').textContent = match ? match.description : '—';
+  const ul = document.getElementById('rEvidence');
+  ul.innerHTML = '';
+  (r.evidence || []).forEach(ev => { const li = document.createElement('li'); li.textContent = ev; ul.appendChild(li); });
+  document.getElementById('resultSection').style.display = 'block';
+  document.getElementById('savedBanner').style.display = 'flex';
+  document.getElementById('resultSection').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function saveToLog(result) {
+  sessionLog.unshift({
+    id:              Date.now(),
+    agentName:       document.getElementById('agentName').value.trim(),
+    teamLead:        document.getElementById('teamLead').value.trim(),
+    lob:             document.getElementById('lob').value,
+    channel:         document.getElementById('channel').value,
+    caseNumber:      document.getElementById('caseNumber').value.trim(),
+    interactionDate: document.getElementById('interactionDate').value,
+    surveyReturnDate:document.getElementById('surveyReturnDate').value,
+    primary:         result.primary,
+    secondary:       result.secondary,
+    tertiary:        result.tertiary,
+    confidence:      result.confidence,
+    reasoning:       result.reasoning,
+    evidence:        result.evidence || []
+  });
+  updateLogBadge();
+  renderLogTable();
+}
+
+function updateLogBadge() {
+  document.getElementById('logBadge').textContent = sessionLog.length;
+  document.getElementById('logCount').textContent = `(${sessionLog.length} record${sessionLog.length!==1?'s':''})`;
+  document.getElementById('exportBtn').disabled = sessionLog.length === 0;
+}
+
+function renderLogTable() {
+  const tbody = document.getElementById('logBody');
+  if (sessionLog.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="icon">📋</div><p>No classifications yet.</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = sessionLog.map(e => `
+    <tr>
+      <td>${e.interactionDate || '—'}</td>
+      <td>${e.surveyReturnDate || '—'}</td>
+      <td><strong>${e.agentName || '—'}</strong></td>
+      <td>${e.teamLead || '—'}</td>
+      <td>${e.lob || '—'}</td>
+      <td>${e.channel || '—'}</td>
+      <td>${e.caseNumber || '—'}</td>
+      <td><span class="pill ${e.primary==='People'?'pill-people':e.primary==='Process'?'pill-process':'pill-product'}">${e.primary || '—'}</span></td>
+      <td style="font-size:12px">${e.secondary || '—'}</td>
+      <td style="font-size:12px">${e.tertiary || '—'}</td>
+      <td>${e.confidence != null ? e.confidence + '%' : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+function exportCSV() {
+  if (sessionLog.length === 0) return;
+  const headers = ['Date of Interaction','Date of Survey Return','Agent Name','Team Lead','LOB','Channel','Case Number','Primary Driver','Secondary Driver','Tertiary Driver','Confidence (%)','Reasoning'];
+  const rows = sessionLog.map(e => [
+    e.interactionDate, e.surveyReturnDate, e.agentName, e.teamLead,
+    e.lob, e.channel, e.caseNumber, e.primary, e.secondary, e.tertiary,
+    e.confidence, '"' + (e.reasoning||'').replace(/"/g,'""') + '"'
+  ]);
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Detractor_RCA_Log_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+const CHART_COLORS = ['#1a7a6e','#2a9d8e','#e07b3a','#7c4daf','#c0392b','#3498db','#27ae60','#f39c12','#8e44ad','#2c3e50','#16a085','#d35400'];
+
+function renderDashboard() {
+  const n = sessionLog.length;
+  if (n === 0) { document.getElementById('dashEmpty').style.display='block'; document.getElementById('dashContent').style.display='none'; return; }
+  document.getElementById('dashEmpty').style.display = 'none';
+  document.getElementById('dashContent').style.display = 'block';
+  const people  = sessionLog.filter(e => e.primary === 'People').length;
+  const process = sessionLog.filter(e => e.primary === 'Process').length;
+  const product = sessionLog.filter(e => e.primary === 'Product').length;
+  const avgConf = Math.round(sessionLog.reduce((s,e) => s + (e.confidence||0), 0) / n);
+  document.getElementById('statTotal').textContent   = n;
+  document.getElementById('statPeople').textContent  = people;
+  document.getElementById('statProcess').textContent = process;
+  document.getElementById('statProduct').textContent = product;
+  document.getElementById('statConf').textContent    = avgConf + '%';
+  document.getElementById('statPeoplePct').textContent  = Math.round(people/n*100) + '% of total';
+  document.getElementById('statProcessPct').textContent = Math.round(process/n*100) + '% of total';
+  document.getElementById('statProductPct').textContent = Math.round(product/n*100) + '% of total';
+  buildChart('chartPrimary',  'doughnut', countBy('primary'));
+  buildChart('chartSecondary','bar',       countBy('secondary'));
+  buildChart('chartTertiary', 'bar',       countBy('tertiary'));
+  buildChart('chartLOB',      'bar',       countBy('lob'));
+}
+
+function countBy(field) {
+  const counts = {};
+  sessionLog.forEach(e => { const v = e[field]||'Unknown'; counts[v] = (counts[v]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  return { labels: sorted.map(x=>x[0]), data: sorted.map(x=>x[1]) };
+}
+
+function buildChart(id, type, { labels, data }) {
+  if (charts[id]) { charts[id].destroy(); }
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: CHART_COLORS.slice(0, labels.length), borderRadius: type==='bar'?4:0, borderWidth: type==='doughnut'?2:0, borderColor: '#fff' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: type==='doughnut', position:'right', labels:{ font:{size:11}, boxWidth:12 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}` } }
+      },
+      scales: type==='bar' ? { x:{ ticks:{font:{size:10},maxRotation:30}, grid:{display:false} }, y:{ ticks:{stepSize:1,font:{size:11}}, grid:{color:'#f0f0f0'} } } : {}
+    }
+  });
+}
+
+updateLogBadge();
+document.addEventListener('keydown', e => { if ((e.ctrlKey||e.metaKey) && e.key==='Enter') analyze(); });
+</script>
+</body>
+</html>
