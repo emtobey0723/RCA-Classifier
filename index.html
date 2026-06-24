@@ -49,6 +49,9 @@
     }
     .nav-tab:hover { color: var(--teal); }
     .nav-tab.active { color: var(--teal); border-bottom-color: var(--teal); font-weight: 600; }
+    #tab-instructions { color: #F45D48; }
+    #tab-instructions:hover { color: #d94432; }
+    #tab-instructions.active { color: #F45D48; border-bottom-color: #F45D48; }
     .nav-badge { background: var(--teal); color: white; border-radius: 20px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
 
     .page { display: none; max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
@@ -194,6 +197,7 @@
     }
     .gate-btn:hover { background: var(--teal-mid); }
     .gate-error { font-size: 13px; color: var(--red); margin-top: 10px; min-height: 18px; }
+    .gate-divider { border: none; border-top: 1px solid var(--gray-border); margin: 18px 0; }
   </style>
 </head>
 <body>
@@ -205,6 +209,9 @@
     <div class="gate-sub">Vendor Root Cause Analysis · Internal Tool</div>
     <label class="gate-label" for="gateInput">Password</label>
     <input class="gate-input" type="password" id="gateInput" placeholder="Enter password…" autocomplete="current-password"/>
+    <hr class="gate-divider"/>
+    <label class="gate-label" for="apiKeyInput">API Key</label>
+    <input class="gate-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" autocomplete="off"/>
     <button class="gate-btn" onclick="checkPassword()">Unlock</button>
     <div class="gate-error" id="gateError"></div>
   </div>
@@ -219,11 +226,19 @@
   }
   window.checkPassword = async function() {
     const val = document.getElementById('gateInput').value;
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    const errEl = document.getElementById('gateError');
+    if (!apiKey) {
+      errEl.textContent = 'Please enter your API key.';
+      document.getElementById('apiKeyInput').focus();
+      return;
+    }
     const hash = await sha256(val);
     if (hash === HASH) {
+      window._SESSION_API_KEY = apiKey;
       document.getElementById('passwordGate').classList.add('hidden');
     } else {
-      document.getElementById('gateError').textContent = 'Incorrect password. Please try again.';
+      errEl.textContent = 'Incorrect password. Please try again.';
       document.getElementById('gateInput').value = '';
       document.getElementById('gateInput').focus();
     }
@@ -244,6 +259,10 @@
 </header>
 
 <nav>
+  <div class="nav-tab" onclick="switchTab('instructions')" id="tab-instructions">
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 7h.01"/></svg>
+    Instructions
+  </div>
   <div class="nav-tab active" onclick="switchTab('classify')" id="tab-classify">
     <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 10h6M7 7h6M7 13h4"/></svg>
     Classify
@@ -256,10 +275,6 @@
   <div class="nav-tab" onclick="switchTab('dashboard')" id="tab-dashboard">
     <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="4" height="7" rx="1"/><rect x="8" y="6" width="4" height="11" rx="1"/><rect x="13" y="3" width="4" height="14" rx="1"/></svg>
     Dashboard
-  </div>
-  <div class="nav-tab" onclick="switchTab('instructions')" id="tab-instructions">
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 7h.01"/></svg>
-    Instructions
   </div>
 </nav>
 
@@ -306,6 +321,7 @@
       <div class="form-group">
         <label>Date of Interaction <span class="required-star">*</span></label>
         <input type="date" id="interactionDate"/>
+        <span style="font-size:11px;color:var(--muted);margin-top:2px">For email, use the latest date of interaction</span>
       </div>
       <div class="form-group">
         <label>Date of Survey Return <span class="required-star">*</span></label>
@@ -541,8 +557,8 @@
 <footer>Gusto Internal Tool · Detractor RCA Rubric v1.0 · For QA use only</footer>
 
 <script>
-// ── API Key ───────────────────────────────────────────────────────────────────
-const API_KEY = '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';
+// ── API Key (set at login, held in memory only) ───────────────────────────────
+const getApiKey = () => window._SESSION_API_KEY || '';
 
 // ── Rubric ────────────────────────────────────────────────────────────────────
 const RUBRIC = [
@@ -667,7 +683,7 @@ Respond ONLY with valid JSON matching this exact schema (no markdown, no extra t
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'x-api-key': API_KEY,
+        'x-api-key': getApiKey(),
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
         'anthropic-dangerous-direct-browser-access': 'true'
