@@ -595,6 +595,9 @@ const RUBRIC = [
 ];
 const RUBRIC_JSON = JSON.stringify(RUBRIC, null, 2);
 
+// ── Google Sheets endpoint ────────────────────────────────────────────────────
+const SHEETS_URL = 'https://script.google.com/a/macros/gusto.com/s/AKfycbwSVhviGg03x40mSZ9FWyuXR5UXoE-KXPuKfphANl5kjo9EvAWv3CPUpGQ2jdtqfW9k/exec';
+
 // ── Session log ───────────────────────────────────────────────────────────────
 let sessionLog = [];
 let charts = {};
@@ -754,6 +757,27 @@ function saveToLog(result) {
   });
   updateLogBadge();
   renderLogTable();
+
+  // ── Persist to Google Sheets ──────────────────────────────────────────────
+  fetch(SHEETS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      interactionDate:  document.getElementById('interactionDate').value,
+      surveyReturnDate: document.getElementById('surveyReturnDate').value,
+      agentName:        document.getElementById('agentName').value.trim(),
+      teamLead:         document.getElementById('teamLead').value.trim(),
+      lob:              document.getElementById('lob').value,
+      channel:          document.getElementById('channel').value,
+      caseNumber:       document.getElementById('caseNumber').value.trim(),
+      primary:          result.primary,
+      secondary:        result.secondary,
+      tertiary:         result.tertiary,
+      confidence:       result.confidence,
+      reasoning:        result.reasoning
+    })
+  }).catch(() => {}); // silent fail — session log is the source of truth
 }
 
 function updateLogBadge() {
