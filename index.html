@@ -762,7 +762,7 @@ function saveToLog(result) {
   fetch(SHEETS_URL, {
     method: 'POST',
     mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({
       interactionDate:  document.getElementById('interactionDate').value,
       surveyReturnDate: document.getElementById('surveyReturnDate').value,
