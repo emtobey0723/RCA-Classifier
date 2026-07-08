@@ -198,6 +198,17 @@
     .gate-btn:hover { background: var(--teal-mid); }
     .gate-error { font-size: 13px; color: var(--red); margin-top: 10px; min-height: 18px; }
     .gate-divider { border: none; border-top: 1px solid var(--gray-border); margin: 18px 0; }
+    .gate-help { margin-top: 12px; border: 1px solid var(--gray-border); border-radius: 8px; overflow: hidden; text-align: left; }
+    .gate-help-toggle { width: 100%; background: var(--gray-bg); border: none; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--teal); cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-family: inherit; }
+    .gate-help-toggle:hover { background: var(--teal-light); }
+    .gate-help-body { display: none; padding: 14px 16px; background: var(--teal-light); border-top: 1px solid #a8d8d2; }
+    .gate-help-body.open { display: block; }
+    .gate-help-steps { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .gate-help-steps li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--gray-text); line-height: 1.5; }
+    .gate-help-num { background: var(--teal); color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .gate-help-note { font-size: 12px; color: var(--gray-text); border-top: 1px solid #a8d8d2; padding-top: 10px; }
+    .gate-help-note a { color: var(--teal); text-decoration: none; font-weight: 600; }
+    code { background: #e2ecea; border-radius: 4px; padding: 1px 5px; font-size: 12px; font-family: monospace; }
   </style>
 </head>
 <body>
@@ -212,6 +223,23 @@
     <hr class="gate-divider"/>
     <label class="gate-label" for="apiKeyInput">API Key</label>
     <input class="gate-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" autocomplete="off"/>
+    <div class="gate-help">
+      <button class="gate-help-toggle" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.gate-chevron').style.transform = this.nextElementSibling.classList.contains('open') ? 'rotate(180deg)' : ''">
+        How do I get an API key?
+        <svg class="gate-chevron" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform 0.2s"><path d="M5 8l5 5 5-5"/></svg>
+      </button>
+      <div class="gate-help-body">
+        <ol class="gate-help-steps">
+          <li><span class="gate-help-num">1</span><span>Go to <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> and sign in with your work email.</span></li>
+          <li><span class="gate-help-num">2</span><span>In the left sidebar, click <strong>API Keys</strong>.</span></li>
+          <li><span class="gate-help-num">3</span><span>Click <strong>Create Key</strong>, give it a name (e.g. <code>rca-classifier</code>), and click <strong>Create Key</strong> again.</span></li>
+          <li><span class="gate-help-num">4</span><span>Copy the key — it starts with <code>sk-ant-</code>. <strong>This is the only time it's shown.</strong></span></li>
+          <li><span class="gate-help-num">5</span><span>Paste it above and click <strong>Unlock</strong>.</span></li>
+        </ol>
+        <div class="gate-help-note">💬 <strong>Don't have console access?</strong> Work with your PE to get an API key.</div>
+      </div>
+    </div>
+    <br/>
     <button class="gate-btn" onclick="checkPassword()">Unlock</button>
     <div class="gate-error" id="gateError"></div>
   </div>
@@ -425,16 +453,90 @@
 
 <!-- DASHBOARD -->
 <div class="page" id="page-dashboard">
-  <div id="dashEmpty" class="dash-empty">
+
+  <!-- Filter bar -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:0">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h14M6 10h8M9 15h2"/></svg>
+        Filters
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span id="dashLastUpdated" style="font-size:11px;color:var(--muted)"></span>
+        <button class="export-btn" onclick="loadSheetData()" id="refreshBtn">
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h5"/><path d="M16 16v-5h-5"/><path d="M4 9a8 8 0 0114 0M16 11a8 8 0 01-14 0"/></svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>From Date</label>
+        <input type="date" id="filterFrom" onchange="applyFilters()"/>
+      </div>
+      <div class="form-group">
+        <label>To Date</label>
+        <input type="date" id="filterTo" onchange="applyFilters()"/>
+      </div>
+      <div class="form-group">
+        <label>LOB</label>
+        <select id="filterLOB" onchange="applyFilters()">
+          <option value="">All LOBs</option>
+          <option>Payroll and Taxes</option>
+          <option>Payroll Advanced Care</option>
+          <option>Partner Care</option>
+          <option>Benefits</option>
+          <option>Financial Services</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Channel</label>
+        <select id="filterChannel" onchange="applyFilters()">
+          <option value="">All Channels</option>
+          <option>Phone</option>
+          <option>Chat</option>
+          <option>Email</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Primary Driver</label>
+        <select id="filterPrimary" onchange="applyFilters()">
+          <option value="">All Drivers</option>
+          <option>People</option>
+          <option>Process</option>
+          <option>Product</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Agent Name</label>
+        <input type="text" id="filterAgent" placeholder="Search…" oninput="applyFilters()"/>
+      </div>
+      <div class="form-group">
+        <label>Team Lead</label>
+        <input type="text" id="filterTeamLead" placeholder="Search…" oninput="applyFilters()"/>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <button onclick="clearFilters()" style="font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">Clear filters</button>
+    </div>
+  </div>
+
+  <div id="dashLoading" style="text-align:center;padding:40px;display:none">
+    <div style="width:24px;height:24px;border:3px solid var(--gray-border);border-top-color:var(--teal);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 12px"></div>
+    <p style="font-size:13px;color:var(--muted)">Loading data from Google Sheets…</p>
+  </div>
+
+  <div id="dashEmpty" class="dash-empty" style="display:none">
     <div class="icon">📊</div>
     <p>No data yet — classify some transcripts to see trends here.</p>
   </div>
+
   <div id="dashContent" style="display:none">
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">Total Classified</div>
         <div class="stat-value" id="statTotal">0</div>
-        <div class="stat-sub">this session</div>
+        <div class="stat-sub">filtered results</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">People</div>
@@ -454,7 +556,7 @@
       <div class="stat-card">
         <div class="stat-label">Avg Confidence</div>
         <div class="stat-value" id="statConf">—</div>
-        <div class="stat-sub">across all cases</div>
+        <div class="stat-sub">across filtered cases</div>
       </div>
     </div>
     <div class="charts-grid">
@@ -462,6 +564,8 @@
       <div class="chart-card"><h3>Secondary Driver</h3><div class="chart-wrap"><canvas id="chartSecondary"></canvas></div></div>
       <div class="chart-card"><h3>Tertiary Driver</h3><div class="chart-wrap"><canvas id="chartTertiary"></canvas></div></div>
       <div class="chart-card"><h3>By LOB</h3><div class="chart-wrap"><canvas id="chartLOB"></canvas></div></div>
+      <div class="chart-card"><h3>By Channel</h3><div class="chart-wrap"><canvas id="chartChannel"></canvas></div></div>
+      <div class="chart-card"><h3>By Team Lead</h3><div class="chart-wrap"><canvas id="chartTeamLead"></canvas></div></div>
     </div>
   </div>
 </div>
@@ -527,11 +631,7 @@
           <div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:0.05em">Source</div>
           <div style="font-size:15px;font-weight:700;color:var(--teal);margin-top:2px">SFDC</div>
         </div>
-        <p style="font-size:14px;line-height:1.8;color:var(--gray-text)">Start from the <strong>most recent email</strong> in the thread and expand the conversation all the way back to the beginning of the interaction. Copy and paste the full expanded thread into the transcript field.</p>
-      </div>
-      <div style="background:#fffbea;border:1px solid #f6d860;border-left:4px solid #f6b800;border-radius:0 8px 8px 0;padding:14px 18px">
-        <div style="font-size:11px;font-weight:700;color:#92740a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">⚠ Important — Multi-Agent Cases</div>
-        <p style="font-size:14px;line-height:1.8;color:#5c4a0a">If the case was previously handled by another agent, <strong>only paste in the interactions from the agent who received the Detractor</strong> and their exchanges with the customer. Do not include prior agents' messages, as each interaction should be evaluated and tagged independently.</p>
+        <p style="font-size:14px;line-height:1.8;color:var(--gray-text)">Paste each email response in <strong>chronological order, oldest to newest</strong>. Expand the oldest email in the thread first and paste everything in — this ensures any previous communications are captured and the AI has full context for an accurate classification.</p>
       </div>
     </div>
 
@@ -595,12 +695,17 @@ const RUBRIC = [
 ];
 const RUBRIC_JSON = JSON.stringify(RUBRIC, null, 2);
 
-// ── Google Sheets endpoint ────────────────────────────────────────────────────
-const SHEETS_URL = 'https://script.google.com/a/macros/gusto.com/s/AKfycbwSVhviGg03x40mSZ9FWyuXR5UXoE-KXPuKfphANl5kjo9EvAWv3CPUpGQ2jdtqfW9k/exec';
+// ── Google Forms endpoint ─────────────────────────────────────────────────────
+const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSexvrDSBT8m9AQ9zrqRt1Y0RXCpLId4eOfHPbUk1N5GRRW6Vg/formResponse';
 
 // ── Session log ───────────────────────────────────────────────────────────────
 let sessionLog = [];
 let charts = {};
+
+// ── Google Sheets CSV ─────────────────────────────────────────────────────────
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT7JAoQiAg6vSsKF1d11hiS0RJd14j0LlIJVz-t9qAVrqX4Mm4jh3KP7y0QODFNOvaUq5i-xd0bUis7/pub?gid=0&single=true&output=csv';
+let sheetData    = [];
+let filteredData = [];
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
 function switchTab(tab) {
@@ -608,7 +713,12 @@ function switchTab(tab) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
   document.getElementById('page-' + tab).classList.add('active');
-  if (tab === 'dashboard') renderDashboard();
+  if (tab === 'dashboard') {
+    loadSheetData();
+    startDashboardPoller();
+  } else {
+    stopDashboardPoller();
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -758,25 +868,26 @@ function saveToLog(result) {
   updateLogBadge();
   renderLogTable();
 
-  // ── Persist to Google Sheets ──────────────────────────────────────────────
-  fetch(SHEETS_URL, {
+  // ── Persist to Google Forms → Sheets ─────────────────────────────────────
+  const formParams = new URLSearchParams({
+    'entry.364005197':  document.getElementById('interactionDate').value,
+    'entry.1562155545': document.getElementById('surveyReturnDate').value,
+    'entry.1967974899': document.getElementById('agentName').value.trim(),
+    'entry.21685587':   document.getElementById('teamLead').value.trim(),
+    'entry.96099078':   document.getElementById('lob').value,
+    'entry.1978891096': document.getElementById('channel').value,
+    'entry.786377515':  document.getElementById('caseNumber').value.trim(),
+    'entry.785135453':  result.primary,
+    'entry.44287889':   result.secondary,
+    'entry.320141218':  result.tertiary,
+    'entry.362310993':  result.confidence,
+    'entry.838183057':  result.reasoning
+  });
+  fetch(FORM_URL, {
     method: 'POST',
     mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({
-      interactionDate:  document.getElementById('interactionDate').value,
-      surveyReturnDate: document.getElementById('surveyReturnDate').value,
-      agentName:        document.getElementById('agentName').value.trim(),
-      teamLead:         document.getElementById('teamLead').value.trim(),
-      lob:              document.getElementById('lob').value,
-      channel:          document.getElementById('channel').value,
-      caseNumber:       document.getElementById('caseNumber').value.trim(),
-      primary:          result.primary,
-      secondary:        result.secondary,
-      tertiary:         result.tertiary,
-      confidence:       result.confidence,
-      reasoning:        result.reasoning
-    })
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: formParams.toString()
   }).catch(() => {}); // silent fail — session log is the source of truth
 }
 
@@ -828,15 +939,116 @@ function exportCSV() {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 const CHART_COLORS = ['#1a7a6e','#2a9d8e','#e07b3a','#7c4daf','#c0392b','#3498db','#27ae60','#f39c12','#8e44ad','#2c3e50','#16a085','#d35400'];
 
+// CSV headers (0-indexed):
+// 0:Timestamp 1:Interaction Date 2:Survey Return Date 3:Agent Name 4:Team Lead
+// 5:LOB 6:Channel 7:Case Number 8:Primary Driver 9:Secondary Driver
+// 10:Tertiary Driver 11:Confidence (%) 12:Reasoning
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  // skip header row (index 0)
+  return lines.slice(1).map(line => {
+    // handle quoted fields
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"' && line[i+1] === '"') { cur += '"'; i++; }
+      else if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cols.push(cur); cur = ''; }
+      else { cur += c; }
+    }
+    cols.push(cur);
+    return {
+      timestamp:        cols[0]  || '',
+      interactionDate:  cols[1]  || '',
+      surveyReturnDate: cols[2]  || '',
+      agentName:        cols[3]  || '',
+      teamLead:         cols[4]  || '',
+      lob:              cols[5]  || '',
+      channel:          cols[6]  || '',
+      caseNumber:       cols[7]  || '',
+      primary:          cols[8]  || '',
+      secondary:        cols[9]  || '',
+      tertiary:         cols[10] || '',
+      confidence:       parseFloat(cols[11]) || 0,
+      reasoning:        cols[12] || ''
+    };
+  }).filter(r => r.primary); // drop blank rows
+}
+
+async function loadSheetData() {
+  document.getElementById('dashLoading').style.display  = 'block';
+  document.getElementById('dashEmpty').style.display    = 'none';
+  document.getElementById('dashContent').style.display  = 'none';
+  document.getElementById('refreshBtn').disabled        = true;
+  try {
+    const resp = await fetch(CSV_URL + '&cachebust=' + Date.now());
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    sheetData = parseCSV(text);
+    document.getElementById('dashLastUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    applyFilters();
+  } catch(e) {
+    document.getElementById('dashLoading').style.display = 'none';
+    document.getElementById('dashEmpty').style.display   = 'block';
+    document.getElementById('dashEmpty').querySelector('p').textContent =
+      'Could not load data. Check your internet connection and try again.';
+  } finally {
+    document.getElementById('refreshBtn').disabled = false;
+  }
+}
+
+function applyFilters() {
+  const from     = document.getElementById('filterFrom').value;
+  const to       = document.getElementById('filterTo').value;
+  const lob      = document.getElementById('filterLOB').value;
+  const channel  = document.getElementById('filterChannel').value;
+  const primary  = document.getElementById('filterPrimary').value;
+  const agent    = document.getElementById('filterAgent').value.trim().toLowerCase();
+  const teamLead = document.getElementById('filterTeamLead').value.trim().toLowerCase();
+
+  filteredData = sheetData.filter(r => {
+    if (from     && r.interactionDate < from)                      return false;
+    if (to       && r.interactionDate > to)                        return false;
+    if (lob      && r.lob !== lob)                                 return false;
+    if (channel  && r.channel !== channel)                         return false;
+    if (primary  && r.primary !== primary)                         return false;
+    if (agent    && !r.agentName.toLowerCase().includes(agent))    return false;
+    if (teamLead && !r.teamLead.toLowerCase().includes(teamLead))  return false;
+    return true;
+  });
+
+  renderDashboard();
+}
+
+function clearFilters() {
+  ['filterFrom','filterTo','filterAgent','filterTeamLead'].forEach(id => document.getElementById(id).value = '');
+  ['filterLOB','filterChannel','filterPrimary'].forEach(id => document.getElementById(id).value = '');
+  applyFilters();
+}
+
 function renderDashboard() {
-  const n = sessionLog.length;
-  if (n === 0) { document.getElementById('dashEmpty').style.display='block'; document.getElementById('dashContent').style.display='none'; return; }
-  document.getElementById('dashEmpty').style.display = 'none';
+  document.getElementById('dashLoading').style.display = 'none';
+  const n = filteredData.length;
+  if (n === 0) {
+    document.getElementById('dashEmpty').style.display   = 'block';
+    document.getElementById('dashContent').style.display = 'none';
+    const hasData = sheetData.length > 0;
+    document.getElementById('dashEmpty').querySelector('p').textContent = hasData
+      ? 'No records match the current filters.'
+      : 'No data yet — classify some transcripts to see trends here.';
+    return;
+  }
+  document.getElementById('dashEmpty').style.display   = 'none';
   document.getElementById('dashContent').style.display = 'block';
-  const people  = sessionLog.filter(e => e.primary === 'People').length;
-  const process = sessionLog.filter(e => e.primary === 'Process').length;
-  const product = sessionLog.filter(e => e.primary === 'Product').length;
-  const avgConf = Math.round(sessionLog.reduce((s,e) => s + (e.confidence||0), 0) / n);
+
+  const people  = filteredData.filter(e => e.primary === 'People').length;
+  const process = filteredData.filter(e => e.primary === 'Process').length;
+  const product = filteredData.filter(e => e.primary === 'Product').length;
+  const avgConf = Math.round(filteredData.reduce((s,e) => s + (e.confidence||0), 0) / n);
+
   document.getElementById('statTotal').textContent   = n;
   document.getElementById('statPeople').textContent  = people;
   document.getElementById('statProcess').textContent = process;
@@ -845,22 +1057,27 @@ function renderDashboard() {
   document.getElementById('statPeoplePct').textContent  = Math.round(people/n*100) + '% of total';
   document.getElementById('statProcessPct').textContent = Math.round(process/n*100) + '% of total';
   document.getElementById('statProductPct').textContent = Math.round(product/n*100) + '% of total';
-  buildChart('chartPrimary',  'doughnut', countBy('primary'));
-  buildChart('chartSecondary','bar',       countBy('secondary'));
-  buildChart('chartTertiary', 'bar',       countBy('tertiary'));
-  buildChart('chartLOB',      'bar',       countBy('lob'));
+
+  buildChart('chartPrimary',   'doughnut', countByField(filteredData, 'primary'));
+  buildChart('chartSecondary', 'bar',      countByField(filteredData, 'secondary'));
+  buildChart('chartTertiary',  'bar',      countByField(filteredData, 'tertiary'));
+  buildChart('chartLOB',       'bar',      countByField(filteredData, 'lob'));
+  buildChart('chartChannel',   'bar',      countByField(filteredData, 'channel'));
+  buildChart('chartTeamLead',  'bar',      countByField(filteredData, 'teamLead'));
 }
 
-function countBy(field) {
+function countByField(data, field) {
   const counts = {};
-  sessionLog.forEach(e => { const v = e[field]||'Unknown'; counts[v] = (counts[v]||0)+1; });
+  data.forEach(e => { const v = e[field]||'Unknown'; counts[v] = (counts[v]||0)+1; });
   const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
   return { labels: sorted.map(x=>x[0]), data: sorted.map(x=>x[1]) };
 }
 
 function buildChart(id, type, { labels, data }) {
   if (charts[id]) { charts[id].destroy(); }
-  const ctx = document.getElementById(id).getContext('2d');
+  const el = document.getElementById(id);
+  if (!el) return;
+  const ctx = el.getContext('2d');
   charts[id] = new Chart(ctx, {
     type,
     data: {
@@ -876,6 +1093,21 @@ function buildChart(id, type, { labels, data }) {
       scales: type==='bar' ? { x:{ ticks:{font:{size:10},maxRotation:30}, grid:{display:false} }, y:{ ticks:{stepSize:1,font:{size:11}}, grid:{color:'#f0f0f0'} } } : {}
     }
   });
+}
+
+// ── Dashboard auto-refresh (60s while tab is active) ─────────────────────────
+let _dashPoller = null;
+function startDashboardPoller() {
+  stopDashboardPoller();
+  _dashPoller = setInterval(() => {
+    // only reload if dashboard tab is still visible
+    if (document.getElementById('page-dashboard').classList.contains('active')) {
+      loadSheetData();
+    }
+  }, 60000);
+}
+function stopDashboardPoller() {
+  if (_dashPoller) { clearInterval(_dashPoller); _dashPoller = null; }
 }
 
 updateLogBadge();
