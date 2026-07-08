@@ -994,7 +994,7 @@ async function loadSheetData() {
     document.getElementById('dashLoading').style.display = 'none';
     document.getElementById('dashEmpty').style.display   = 'block';
     document.getElementById('dashEmpty').querySelector('p').textContent =
-      'Could not load data. Check your internet connection and try again.';
+      'Could not load data (' + e.message + '). Make sure the sheet tab is published: File → Share → Publish to web.';
   } finally {
     document.getElementById('refreshBtn').disabled = false;
   }
